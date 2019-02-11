@@ -1,0 +1,28 @@
+﻿  DefferedShading.cpp
+c:\users\msi\documents\visual studio 2017\projects\opengltest\openglsamples\defferedshading\defferedshading.cpp(147): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\opengltest\openglsamples\defferedshading\defferedshading.cpp(148): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\opengltest\openglsamples\defferedshading\defferedshading.cpp(427): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\opengltest\openglsamples\defferedshading\defferedshading.cpp(453): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\opengltest\openglsamples\defferedshading\defferedshading.cpp(454): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\opengltest\openglsamples\defferedshading\defferedshading.cpp(455): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+  FullScreenQuad.cpp
+  GLFrameBuffer.cpp
+c:\users\msi\documents\visual studio 2017\projects\opengltest\openglsamples\framework\glframebuffer.cpp(126): warning C4018: '<': signed/unsigned mismatch
+c:\users\msi\documents\visual studio 2017\projects\opengltest\openglsamples\framework\glframebuffer.cpp(150): warning C4018: '<': signed/unsigned mismatch
+c:\users\msi\documents\visual studio 2017\projects\opengltest\openglsamples\framework\glframebuffer.cpp(158): warning C4018: '<': signed/unsigned mismatch
+  GLTexture.cpp
+  Mesh.cpp
+  Model.cpp
+  Shader.cpp
+  Source.cpp
+  stb_image.cpp
+  TextureManager.cpp
+  HelloRectangle.cpp
+  Lighting.cpp
+  Transformations.cpp
+  gl3w.c
+LINK : warning LNK4098: defaultlib 'MSVCRTD' conflicts with use of other libs; use /NODEFAULTLIB:library
+  Generating code
+  All 946 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  OpenGLTest.vcxproj -> C:\Users\MSI\Documents\Visual Studio 2017\Projects\OpenGLTest\OpenGLSamples\DefferedShading\Release\OpenGLTest.exe

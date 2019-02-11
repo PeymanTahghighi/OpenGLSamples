@@ -26,6 +26,6 @@ void main()
 	normal = normalWorld * 0.5f + 0.5f;
 	vec3 textureDiffuse = texture(diffuseTexture0,texCoord).rgb;
 	vec3 textureSpecularMap = texture(specularTexture0,texCoord).rgb;
-	albedoSpec = vec4(material.diffuse * textureDiffuse,material.shininess);
-	specular = textureSpecularMap;
+	albedoSpec = vec4(material.diffuse,material.shininess);
+	specular = vec3(1.0f);
 }

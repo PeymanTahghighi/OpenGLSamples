@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+*.pdb
+/.vs/OpenGL/v15/ipch/AutoPCH
+*.opendb
+/.vs/OpenGL/v15

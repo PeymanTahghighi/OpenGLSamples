@@ -43,6 +43,11 @@ struct SpotLight
 	float lightFallOffOffset;
 };
 
+struct DirectionalLight
+{
+	glm::vec3 position;
+	glm::vec3 lightColor;
+};
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
@@ -62,17 +67,22 @@ static float angle = 0.0f;
 
 Shader objectShader;
 Shader DefferedRendererShader;
+Shader DirectionalLightDepthShader;
 glm::vec2 lastMousePosition;
 
-PointLight pointLight;
+DirectionalLight directionalLight;
 
 Model tyra;
-Model sponza;
+Model bunny;
 Model armadilo;
 Model plane;
 
 GLuint vertexBuffer, indexBuffer, vertexArrayBuffer,VAOQuad,VBOQuad;
 GLFrameBuffer *frameBuffer;
+GLFrameBuffer * depthmap;
+
+const float ShadowmapWidth = 1024;
+const float shadowmapHeight = 1024;
 //----------------------------------------------------------------------------------------
 
 
@@ -97,17 +107,14 @@ void renderObjects(float deltaTime)
 	glm::mat4 projection(1.0f);
 	projection = perspectiveProjection(glm::radians(fov), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 1000.0f);
 	view = glm::lookAt(gCameraPosition, gCameraPosition + gCameraTarget, gCameraUp);
-	glm::vec4 clip = glm::vec4(-1.0f, -1.0f, -1.0f, 1.0f) * glm::transpose(projection);
-	glm::vec3 ndc = glm::vec3(clip.x / clip.w, clip.y / clip.w, clip.z / clip.w);
 	objectShader.setMatrix("view", view);
 	objectShader.setMatrix("projection", projection);
 
 
 	//render bunny
 	{
-		sponza.update(objectShader);
-		
-		sponza.render(objectShader);
+		bunny.update(objectShader);
+		bunny.render(objectShader);
 	}
 	//---------------------------------------------------------------------------
 
@@ -115,7 +122,7 @@ void renderObjects(float deltaTime)
 	glBindVertexArray(vertexArrayBuffer);
 	glm::mat4 scale(1.0f), model(1.0f),translation(1.0f);
 	scale = glm::scale(scale, glm::vec3(8.0f, 0.01f, 8.0f));
-	translation = glm::translate(translation, glm::vec3(0.0f, -0.5f, 0.0f));
+	translation = glm::translate(translation, glm::vec3(0.0f, -0.3f, 0.0f));
 	model = translation * scale;
 	objectShader.setMatrix("model", model);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -124,11 +131,43 @@ void renderObjects(float deltaTime)
 }
 //----------------------------------------------------------------------------------------
 
+//----------------------------------------------------------------------------------------
+void renderObjectsDepth(float deltaTime)
+{
+	DirectionalLightDepthShader.use();
+
+	//render bunny
+	{
+		bunny.update(DirectionalLightDepthShader);
+		bunny.render(DirectionalLightDepthShader);
+	}
+	//---------------------------------------------------------------------------
+}
+//----------------------------------------------------------------------------------------
+
 
 //----------------------------------------------------------------------------------------
 void render(float deltaTime)
 {
+	//render to directional light shadowmap
+	glViewport(0, 0, shadowmapHeight, shadowmapHeight);
+	glm::mat4 lightProjection(1.0f), lightView(1.0f);
+	float nearPlane = 1.0f;
+	float farPlane = 50.0f;
+	lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, nearPlane, farPlane);
+	lightView = glm::lookAt(directionalLight.position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, .0f));
+	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+	
+	DirectionalLightDepthShader.use();
+	DirectionalLightDepthShader.setMatrix("lightSpaceMatrix", lightSpaceMatrix);
+
+	depthmap->beginRender();
+	renderObjectsDepth(deltaTime);
+	depthmap->endRender();
+	//---------------------------------------------
+
 	//render normal scene to G-Buffer
+	glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	frameBuffer->beginRender();
 	renderObjects(deltaTime);
 	frameBuffer->endRender();
@@ -149,10 +188,12 @@ void render(float deltaTime)
 	DefferedRendererShader.setFloat("projParamX", 1.0f / projection[0][0]);
 	DefferedRendererShader.setFloat("projParamY", 1.0f / projection[1][1]);
 	DefferedRendererShader.setMatrix("invView", glm::inverse(view));
+	DefferedRendererShader.setMatrix("lightSpaceMatrix", lightSpaceMatrix);
 	frameBuffer->bindAttachedTexture(0, GL_TEXTURE0);
 	frameBuffer->bindAttachedTexture(1, GL_TEXTURE1);
 	frameBuffer->bindAttachedTexture(2, GL_TEXTURE2);
 	frameBuffer->bindAttachedTexture(3, GL_TEXTURE3);
+	depthmap->bindAttachedTexture(0, GL_TEXTURE4);
 	glBindVertexArray(VAOQuad);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
@@ -416,13 +457,16 @@ int main()
 
 	DefferedRendererShader.initialize();
 	DefferedRendererShader.loadShaders("DefferedShading/vertexShaderPosition.vs", "DefferedShading/fragmentShaderDeffered.fs");
+
+	DirectionalLightDepthShader.initialize();
+	DirectionalLightDepthShader.loadShaders("DefferedShading/vertexshaderPositionNormalTexCoordDepthMap.vs",
+		"DefferedShading/fragmentShaderDepthMap.fs");
 	
 	srand((unsigned int)time(nullptr));
 
 
 	//tyra.initialize("DefferedShading/Media/tyra.x");
-	sponza.initialize("DefferedShading\\Media\\crytek-sponza\\sponza_nobanner.obj");
-	sponza.setScale(glm::vec3(0.05f));
+	bunny.initialize("DefferedShading\\Media\\bunny.obj");
 	//armadilo.initialize("DefferedShading/Media/spotlight.x");
 	//plane.initialize("DefferedShading/Media/ring.x");
 	//--------------------------------------------------------------------------------
@@ -435,31 +479,23 @@ int main()
 	frameBuffer->attachToFrameBuffer(GLFrameBuffer::FRAMEBUFFER_ATTACHMENT::COLOR_ATTACHMENT, GLTexture::TEXTURE_INTERNAL_FORMAT::RGB32F);
 	frameBuffer->enableRenderToAllColorAttachments();
 
-	pointLight.lightColor = glm::vec3(1.0f, 0.5, 0.1f);
-	pointLight.lightPosition = glm::vec3(2.0f);
+	depthmap = new GLFrameBuffer(ShadowmapWidth, shadowmapHeight);
+	depthmap->attachToFrameBuffer(GLFrameBuffer::FRAMEBUFFER_ATTACHMENT::DEPTH_ATTACHMENT);
+
+
+	directionalLight.lightColor = glm::vec3(1.0f, 0.5, 0.1f);
+	directionalLight.position = glm::vec3(2.0f);
 	DefferedRendererShader.use();
 	DefferedRendererShader.setInt("textureDepth", 0);
 	DefferedRendererShader.setInt("textureNormal", 1);
 	DefferedRendererShader.setInt("textureAlbedoSpec", 2);
 	DefferedRendererShader.setInt("textureSpecular", 3);
-	glm::vec3 lightPosition[3] = {
-		glm::vec3(2.0f,5.0f,3.0f),
-		glm::vec3(5.0f,10.0f,4.0f),
-		glm::vec3(7.0f,6.0f,1.0f),
-	};
+	DefferedRendererShader.setInt("directionalLightShadowmap", 4);
+	
+	
+	DefferedRendererShader.setVec3("directionalLight.direction", glm::normalize(glm::vec3(0.0f) - directionalLight.position));
+	DefferedRendererShader.setVec3("directionalLight.color",directionalLight.lightColor);
 
-	glm::vec3 lightColor[3] = {
-		glm::vec3(0.5f,0.8f,0.1f),
-		glm::vec3(0.8f,0.1f,0.5f),
-		glm::vec3(0.1f,0.5f,0.8f)
-	};
-
-	srand(time(nullptr));
-	for (int i = 0; i < 3; i++)
-	{
-		DefferedRendererShader.setVec3(("pointLight[" + std::to_string(i) + "].lightColor").c_str(), lightColor[i]);
-		DefferedRendererShader.setVec3(("pointLight[" + std::to_string(i) + "].lightPosition").c_str(), lightPosition[i]);
-	}
 	gCameraPosition = glm::vec3(0.0f, 0.0f, 3.0f);
 	gCameraTarget = glm::vec3(0.0f, 0.0f, -1.0f);
 	//---------------------------------------------------------------------------------
@@ -475,8 +511,8 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	glFrontFace(GL_CW);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CCW);
 
 
 	while (!glfwWindowShouldClose(window))
