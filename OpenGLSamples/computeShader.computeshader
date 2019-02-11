@@ -1,0 +1,38 @@
+#version 430 core
+
+layout(local_size_x = 1024) in;
+
+layout (rgba16f , binding = 0) uniform image2D img_input;
+layout (rgba16f , binding = 1) uniform image2D img_output;
+
+shared vec4 local_data[gl_WorkGroupSize.x][gl_WorkGroupSize.y];
+
+
+void main()
+{
+    local_data[gl_LocalInvocationID.x][gl_LocalInvocationID.y] =
+	imageLoad(img_input,ivec2(gl_GlobalInvocationID.xy));
+    barrier();
+    memoryBarrierShared();
+	
+	//ivec2 imagePos;
+	//vec4 finalColor = vec4(0.0f);
+	//for(int i = 0; i < gl_WorkGroupSize.x; ++i)
+	//{
+	//	for(int j = 0; j < gl_WorkGroupSize.y; j++)
+	//	{
+	//		finalColor += local_data[i][j]; 
+	//	}
+	//}
+	//
+	//finalColor/=gl_WorkGroupSize.x * gl_WorkGroupSize.y;
+	
+	
+	
+	
+    imageStore(img_output,
+    ivec2(gl_GlobalInvocationID.xy),
+    local_data[gl_LocalInvocationID.x][gl_LocalInvocationID.y]);
+
+	
+}
