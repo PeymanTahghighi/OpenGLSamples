@@ -153,8 +153,8 @@ void render(float deltaTime)
 	glViewport(0, 0, shadowmapHeight, shadowmapHeight);
 	glm::mat4 lightProjection(1.0f), lightView(1.0f);
 	float nearPlane = 1.0f;
-	float farPlane = 50.0f;
-	lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, nearPlane, farPlane);
+	float farPlane = 10.0f;
+	lightProjection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, nearPlane, farPlane);
 	lightView = glm::lookAt(directionalLight.position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, .0f));
 	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 	
@@ -322,7 +322,7 @@ void createPlane()
 {
 	float vertices[] =
 	{
-		 -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
 			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
 			 1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
 			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right

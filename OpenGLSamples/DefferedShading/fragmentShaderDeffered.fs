@@ -87,7 +87,7 @@ void main()
 	vec3 halfWay = normalize(-directionalLight.direction + viewVec);
 	vec3 specular = pow(max(dot(halfWay,normalWorld),0.0f),128.0f) * directionalLight.color * albedoSpec.rgb * specularMap.rgb;
 	diffuse*=shadow;
-	//specular*=shadow;
+	specular*=shadow;
 	vec3 finalColor = diffuse + specular;
 	//-------------------------------------------------------------------
 	
