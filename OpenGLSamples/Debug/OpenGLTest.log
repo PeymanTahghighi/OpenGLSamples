@@ -1,2 +1,9 @@
-﻿  Model.cpp
+﻿  DefferedShading.cpp
+c:\users\msi\documents\visual studio 2017\projects\openglsamples\openglsamples\defferedshading\defferedshading.cpp(153): warning C4244: 'argument': conversion from 'const float' to 'GLsizei', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\openglsamples\openglsamples\defferedshading\defferedshading.cpp(306): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\openglsamples\openglsamples\defferedshading\defferedshading.cpp(307): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\openglsamples\openglsamples\defferedshading\defferedshading.cpp(625): warning C4244: 'argument': conversion from 'const float' to 'unsigned int', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\openglsamples\openglsamples\defferedshading\defferedshading.cpp(667): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\openglsamples\openglsamples\defferedshading\defferedshading.cpp(668): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+c:\users\msi\documents\visual studio 2017\projects\openglsamples\openglsamples\defferedshading\defferedshading.cpp(669): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
   OpenGLTest.vcxproj -> C:\Users\MSI\Documents\Visual Studio 2017\Projects\OpenGLSamples\Debug\OpenGLTest.exe
