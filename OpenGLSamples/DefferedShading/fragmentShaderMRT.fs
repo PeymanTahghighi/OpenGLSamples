@@ -14,7 +14,6 @@ struct Material
 uniform Material material;
 
 in vec3 normalWorld;
-in vec3 worldPosition;
 in vec2 texCoord;
 
 uniform sampler2D diffuseTexture0; //diffuse texture0

@@ -22,10 +22,7 @@
 ////=======================================================================================
 
 
-
-
 //-----------------------------------------------------------------------------------------
-
 struct PointLight
 {
 	glm::vec3 lightColor;
@@ -66,8 +63,9 @@ const float MAX_CAMERA_SPEED = 30.0f;
 static float angle = 0.0f;
 
 Shader objectShader;
-Shader DefferedRendererShader;
-Shader DirectionalLightDepthShader;
+Shader defferedRendererShader;
+Shader directionalLightDepthShader;
+Shader debugFrustumShader;
 glm::vec2 lastMousePosition;
 
 DirectionalLight directionalLight;
@@ -78,6 +76,7 @@ Model armadilo;
 Model plane;
 
 GLuint vertexBuffer, indexBuffer, vertexArrayBuffer,VAOQuad,VBOQuad;
+GLuint vertexBufferFrustum;
 GLFrameBuffer *frameBuffer;
 GLFrameBuffer * depthmap;
 
@@ -85,7 +84,7 @@ const float ShadowmapWidth = 1024;
 const float shadowmapHeight = 1024;
 //----------------------------------------------------------------------------------------
 
-
+//----------------------------------------------------------------------------------------
 glm::mat4 perspectiveProjection(float fov,float aspectRatio, float _near, float _far)
 {
 	const float zRange = _far - _near;
@@ -98,6 +97,7 @@ glm::mat4 perspectiveProjection(float fov,float aspectRatio, float _near, float 
 	ret[2][3] = -1.0f;
 	return ret;
 }
+//----------------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------------------
 void renderObjects(float deltaTime)
@@ -126,6 +126,7 @@ void renderObjects(float deltaTime)
 	model = translation * scale;
 	objectShader.setMatrix("model", model);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
+	glBindVertexArray(0);
 	//---------------------------------------------------------------------------
 	
 }
@@ -134,17 +135,16 @@ void renderObjects(float deltaTime)
 //----------------------------------------------------------------------------------------
 void renderObjectsDepth(float deltaTime)
 {
-	DirectionalLightDepthShader.use();
+	directionalLightDepthShader.use();
 
 	//render bunny
 	{
-		bunny.update(DirectionalLightDepthShader);
-		bunny.render(DirectionalLightDepthShader);
+		bunny.update(directionalLightDepthShader);
+		bunny.render(directionalLightDepthShader);
 	}
 	//---------------------------------------------------------------------------
 }
 //----------------------------------------------------------------------------------------
-
 
 //----------------------------------------------------------------------------------------
 void render(float deltaTime)
@@ -158,8 +158,8 @@ void render(float deltaTime)
 	lightView = glm::lookAt(directionalLight.position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, .0f));
 	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 	
-	DirectionalLightDepthShader.use();
-	DirectionalLightDepthShader.setMatrix("lightSpaceMatrix", lightSpaceMatrix);
+	directionalLightDepthShader.use();
+	directionalLightDepthShader.setMatrix("lightSpaceMatrix", lightSpaceMatrix);
 
 	depthmap->beginRender();
 	renderObjectsDepth(deltaTime);
@@ -175,20 +175,20 @@ void render(float deltaTime)
 
 	//render scene
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	DefferedRendererShader.use();
+	defferedRendererShader.use();
 	glm::mat4 projection(1.0f);
 	projection = perspectiveProjection(glm::radians(fov), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 1000.0f);
 	glm::mat4 view(1.0f);
 	view = glm::lookAt(gCameraPosition, gCameraPosition + gCameraTarget, gCameraUp);
 	glm::mat4 inv = glm::inverse(view);
 	glm::mat4 testify = view * inv;
-	DefferedRendererShader.setVec3("cameraPosition", gCameraPosition);
-	DefferedRendererShader.setFloat("projA", projection[2][2]);
-	DefferedRendererShader.setFloat("projB", projection[3][2]);
-	DefferedRendererShader.setFloat("projParamX", 1.0f / projection[0][0]);
-	DefferedRendererShader.setFloat("projParamY", 1.0f / projection[1][1]);
-	DefferedRendererShader.setMatrix("invView", glm::inverse(view));
-	DefferedRendererShader.setMatrix("lightSpaceMatrix", lightSpaceMatrix);
+	defferedRendererShader.setVec3("cameraPosition", gCameraPosition);
+	defferedRendererShader.setFloat("projA", projection[2][2]);
+	defferedRendererShader.setFloat("projB", projection[3][2]);
+	defferedRendererShader.setFloat("projParamX", 1.0f / projection[0][0]);
+	defferedRendererShader.setFloat("projParamY", 1.0f / projection[1][1]);
+	defferedRendererShader.setMatrix("invView", glm::inverse(view));
+	defferedRendererShader.setMatrix("lightSpaceMatrix", lightSpaceMatrix);
 	frameBuffer->bindAttachedTexture(0, GL_TEXTURE0);
 	frameBuffer->bindAttachedTexture(1, GL_TEXTURE1);
 	frameBuffer->bindAttachedTexture(2, GL_TEXTURE2);
@@ -197,6 +197,95 @@ void render(float deltaTime)
 	glBindVertexArray(VAOQuad);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
+
+	//forward render pass
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, frameBuffer->getFrameBuffer());
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
+	glBlitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//render frustum
+	float data[] = {
+			-1.0f, -1.0f, -1.0f, // bottom-left
+			 1.0f,  1.0f, -1.0f, // top-right
+			 1.0f, -1.0f, -1.0f, // bottom-right         
+			 1.0f,  1.0f, -1.0f, // top-right
+			-1.0f, -1.0f, -1.0f, // bottom-left
+			-1.0f,  1.0f, -1.0f, // top-left
+			// front face
+			-1.0f, -1.0f,  1.0f, // bottom-left
+			 1.0f, -1.0f,  1.0f, // bottom-right
+			 1.0f,  1.0f,  1.0f, // top-right
+			 1.0f,  1.0f,  1.0f, // top-right
+			-1.0f,  1.0f,  1.0f, // top-left
+			-1.0f, -1.0f,  1.0f, // bottom-left
+			// left face
+			-1.0f,  1.0f,  1.0f, // top-right
+			-1.0f,  1.0f, -1.0f, // top-left
+			-1.0f, -1.0f, -1.0f, // bottom-left
+			-1.0f, -1.0f, -1.0f, // bottom-left
+			-1.0f, -1.0f,  1.0f, // bottom-right
+			-1.0f,  1.0f,  1.0f, // top-right
+			// right face
+			 1.0f,  1.0f,  1.0f, // top-left
+			 1.0f, -1.0f, -1.0f, // bottom-right
+			 1.0f,  1.0f, -1.0f, // top-right         
+			 1.0f, -1.0f, -1.0f, // bottom-right
+			 1.0f,  1.0f,  1.0f, // top-left
+			 1.0f, -1.0f,  1.0f, // bottom-left     
+			// bottom face
+			-1.0f, -1.0f, -1.0f, // top-right
+			 1.0f, -1.0f, -1.0f, // top-left
+			 1.0f, -1.0f,  1.0f, // bottom-left
+			 1.0f, -1.0f,  1.0f, // bottom-left
+			-1.0f, -1.0f,  1.0f, // bottom-right
+			-1.0f, -1.0f, -1.0f, // top-right
+			// top face
+			-1.0f,  1.0f, -1.0f, // top-left
+			 1.0f,  1.0f , 1.0f, // bottom-right
+			 1.0f,  1.0f, -1.0f, // top-right     
+			 1.0f,  1.0f,  1.0f, // bottom-right
+			-1.0f,  1.0f, -1.0f, // top-left
+			-1.0f,  1.0f,  1.0f, // bottom-left    
+	};
+	debugFrustumShader.use();
+	debugFrustumShader.setMatrix("view", view);
+	debugFrustumShader.setMatrix("projection", projection);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferFrustum);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(data), 0, GL_DYNAMIC_DRAW);
+	float * mapped = reinterpret_cast<float*>(glMapBufferRange(GL_ARRAY_BUFFER, 0, sizeof(data), GL_MAP_WRITE_BIT));
+	memcpy(mapped, data, sizeof(data));
+	glUnmapBuffer(GL_ARRAY_BUFFER);
+	int a = sizeof(data);
+	int b = 36 * 3 * sizeof(float);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+	GLenum err = glGetError();
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+
+	{
+
+		/*debugFrustumShader.use();
+		glm::mat4 view(1.0f);
+		glm::mat4 projection(1.0f);
+		projection = perspectiveProjection(glm::radians(fov), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 1000.0f);
+		view = glm::lookAt(gCameraPosition, gCameraPosition + gCameraTarget, gCameraUp);
+		debugFrustumShader.setMatrix("view", view);
+		debugFrustumShader.setMatrix("projection", projection);
+
+		glBindVertexArray(vertexArrayBuffer);
+		glm::mat4 scale(1.0f), model(1.0f), translation(1.0f);
+		scale = glm::scale(scale, glm::vec3(8.0f, 1.0f, 8.0f));
+		translation = glm::translate(translation, glm::vec3(0.0f, 1.3f, 0.0f));
+		model = translation * scale;
+		debugFrustumShader.setMatrix("model", model);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		GLenum err = glGetError();
+		glBindVertexArray(0);*/
+	}
+	//---------------------------------------------------------------------------
+	//--------------------------------------------------------------------------------------------
 	//----------------------------------------------
 }
 //----------------------------------------------------------------------------------------
@@ -388,8 +477,10 @@ void createPlane()
 
 	//----------------------------------------------------------------------------------------
 }
+//----------------------------------------------------------------------------------------
 
-void creaFullscreenQuad()
+//----------------------------------------------------------------------------------------
+void createFullscreenQuad()
 {
 	float verticesQuad[] =
 	{
@@ -412,16 +503,62 @@ void creaFullscreenQuad()
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(verticesQuad), verticesQuad, GL_STATIC_DRAW);
 
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)12);
 
-
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-
 	glBindVertexArray(0);
-}
 
+	float data[] = {
+			-1.0f, -1.0f, -1.0f, // bottom-left
+			 1.0f,  1.0f, -1.0f, // top-right
+			 1.0f, -1.0f, -1.0f, // bottom-right         
+			 1.0f,  1.0f, -1.0f, // top-right
+			-1.0f, -1.0f, -1.0f, // bottom-left
+			-1.0f,  1.0f, -1.0f, // top-left
+			// front face
+			-1.0f, -1.0f,  1.0f, // bottom-left
+			 1.0f, -1.0f,  1.0f, // bottom-right
+			 1.0f,  1.0f,  1.0f, // top-right
+			 1.0f,  1.0f,  1.0f, // top-right
+			-1.0f,  1.0f,  1.0f, // top-left
+			-1.0f, -1.0f,  1.0f, // bottom-left
+			// left face
+			-1.0f,  1.0f,  1.0f, // top-right
+			-1.0f,  1.0f, -1.0f, // top-left
+			-1.0f, -1.0f, -1.0f, // bottom-left
+			-1.0f, -1.0f, -1.0f, // bottom-left
+			-1.0f, -1.0f,  1.0f, // bottom-right
+			-1.0f,  1.0f,  1.0f, // top-right
+			// right face
+			 1.0f,  1.0f,  1.0f, // top-left
+			 1.0f, -1.0f, -1.0f, // bottom-right
+			 1.0f,  1.0f, -1.0f, // top-right         
+			 1.0f, -1.0f, -1.0f, // bottom-right
+			 1.0f,  1.0f,  1.0f, // top-left
+			 1.0f, -1.0f,  1.0f, // bottom-left     
+			// bottom face
+			-1.0f, -1.0f, -1.0f, // top-right
+			 1.0f, -1.0f, -1.0f, // top-left
+			 1.0f, -1.0f,  1.0f, // bottom-left
+			 1.0f, -1.0f,  1.0f, // bottom-left
+			-1.0f, -1.0f,  1.0f, // bottom-right
+			-1.0f, -1.0f, -1.0f, // top-right
+			// top face
+			-1.0f,  1.0f, -1.0f, // top-left
+			 1.0f,  1.0f , 1.0f, // bottom-right
+			 1.0f,  1.0f, -1.0f, // top-right     
+			 1.0f,  1.0f,  1.0f, // bottom-right
+			-1.0f,  1.0f, -1.0f, // top-left
+			-1.0f,  1.0f,  1.0f, // bottom-left    
+	};
+	glGenBuffers(1, &vertexBufferFrustum);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferFrustum);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+//----------------------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------------------
 int main()
@@ -450,17 +587,21 @@ int main()
 
 	//init resource
 	createPlane();
-	creaFullscreenQuad();
+	createFullscreenQuad();
 	objectShader.initialize();
 	objectShader.loadShaders("DefferedShading/vertexShaderPositionNormalTexCoord.vs",
 		"DefferedShading/fragmentShaderMRT.fs");
 
-	DefferedRendererShader.initialize();
-	DefferedRendererShader.loadShaders("DefferedShading/vertexShaderPosition.vs", "DefferedShading/fragmentShaderDeffered.fs");
+	defferedRendererShader.initialize();
+	defferedRendererShader.loadShaders("DefferedShading/vertexShaderPositionNDC.vs", "DefferedShading/fragmentShaderDeffered.fs");
 
-	DirectionalLightDepthShader.initialize();
-	DirectionalLightDepthShader.loadShaders("DefferedShading/vertexshaderPositionNormalTexCoordDepthMap.vs",
+	directionalLightDepthShader.initialize();
+	directionalLightDepthShader.loadShaders("DefferedShading/vertexshaderPositionNormalTexCoordDepthMap.vs",
 		"DefferedShading/fragmentShaderDepthMap.fs");
+
+	debugFrustumShader.initialize();
+	debugFrustumShader.loadShaders("DefferedShading/vertexshaderPosition.vs",
+		"DefferedShading/fragmentShaderColorSimple.fs");
 	
 	srand((unsigned int)time(nullptr));
 
@@ -485,16 +626,16 @@ int main()
 
 	directionalLight.lightColor = glm::vec3(1.0f, 0.5, 0.1f);
 	directionalLight.position = glm::vec3(2.0f);
-	DefferedRendererShader.use();
-	DefferedRendererShader.setInt("textureDepth", 0);
-	DefferedRendererShader.setInt("textureNormal", 1);
-	DefferedRendererShader.setInt("textureAlbedoSpec", 2);
-	DefferedRendererShader.setInt("textureSpecular", 3);
-	DefferedRendererShader.setInt("directionalLightShadowmap", 4);
+	defferedRendererShader.use();
+	defferedRendererShader.setInt("textureDepth", 0);
+	defferedRendererShader.setInt("textureNormal", 1);
+	defferedRendererShader.setInt("textureAlbedoSpec", 2);
+	defferedRendererShader.setInt("textureSpecular", 3);
+	defferedRendererShader.setInt("directionalLightShadowmap", 4);
 	
 	
-	DefferedRendererShader.setVec3("directionalLight.direction", glm::normalize(glm::vec3(0.0f) - directionalLight.position));
-	DefferedRendererShader.setVec3("directionalLight.color",directionalLight.lightColor);
+	defferedRendererShader.setVec3("directionalLight.direction", glm::normalize(glm::vec3(0.0f) - directionalLight.position));
+	defferedRendererShader.setVec3("directionalLight.color",directionalLight.lightColor);
 
 	gCameraPosition = glm::vec3(0.0f, 0.0f, 3.0f);
 	gCameraTarget = glm::vec3(0.0f, 0.0f, -1.0f);

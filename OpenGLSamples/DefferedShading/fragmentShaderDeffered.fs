@@ -32,10 +32,7 @@ uniform mat4 lightSpaceMatrix;
 in vec2 texCoord;
 in vec2 cpPos;
 
-
-
 out vec4 fragColor;
-
 
 float calculateShadow(vec4 lightSpacePosition,vec3 normal)
 {

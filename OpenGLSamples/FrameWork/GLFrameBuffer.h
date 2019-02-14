@@ -38,6 +38,7 @@ public:
 	void enableRenderToAllColorAttachments();
 	void disableRenderToAllAttachments();
 	void bindAttachedTexture(int,GLenum);
+	unsigned int getFrameBuffer() const { return m_frameBufferObject; }
 
 	GLTexture &getAttachedTexture(int i);
 	//------------------------------------------------------------------------------------------
